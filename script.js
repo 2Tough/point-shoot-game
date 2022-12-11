@@ -42,7 +42,7 @@ class Raven {
         }
         this.x -= this.directionX
         this.y += this.directionY
-        if (this.x < 0) this.markedForDeletion = true
+        if (this.x < 0 - this.width) this.markedForDeletion = true
         this.timeSinceFlap += deltatime
         if(this.timeSinceFlap > this.flapInterval) {
             if (this.frame > this.maxFrame) this.frame = 0
@@ -60,7 +60,7 @@ class Raven {
     }
     draw() {
         collisionCtx.fillStyle = this.color;
-        collisionCtx.strokeRect(this.x, this.y, this.width, this.height)
+        collisionCtx.fillRect(this.x, this.y, this.width, this.height)
         ctx.drawImage(this.image, this.frame * this.spriteWidth, 0, this.spriteWidth, this.spriteHeight, this.x, this.y, this.width, this.height)
     }
 }
@@ -82,7 +82,7 @@ class Explosion {
         this.frameInterval = 200
         this.markedForDeletion =  false
     }
-    update() {
+    update(deltatime) {
         if (this.frame === 0) this.sound.play()
         this.timeSinceLastFrame += deltatime
         if (this.timeSinceLastFrame > this.frameInterval) {
@@ -96,6 +96,34 @@ class Explosion {
     }
 }
 
+let particles = []
+class Particle {
+    constructor(x, y, size, color) {
+        this.size = size
+        this.x = x + this.size/2 + Math.random() * 50 - 25
+        this.y = y + this.size/3 + Math.random() * 50 - 25
+        this.radius = Math.random() * this.size/10
+        this.maxRadius = Math.random() * 20 + 35
+        this.markedForDeletion = false
+        this.speedX = Math.random() * 1 + 0.5
+        this.color = color
+    }
+    update() {
+        this.x += this.speedX
+        this.radius +=  0.8
+        if (this.radius > this.maxRadius - 5) this.markedForDeletion = true
+    }
+    draw() {
+        ctx.save()
+        ctx.globalAlpha = 1 - this.radius/this.maxRadius
+        ctx.beginPath()
+        ctx.fillStyle = this.color
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.restore()
+    }
+
+}
 
 function drawScore() {
     ctx.fillStyle = 'black'
@@ -116,47 +144,19 @@ function drawGameover() {
 
 const raven = new Raven()
 
-window.addEventListener('click', function(e) {
+window.addEventListener('click', function (e) {
     const detectPixelColor = collisionCtx.getImageData(e.x, e.y, 1, 1);
-    console.log(detectPixelColor)
-    const pc = detectPixelColor.data
+    const pc = detectPixelColor.data;
     ravens.forEach(object => {
         if (object.randomColors[0] === pc[0] && object.randomColors[1] === pc[1] && object.randomColors[2] === pc[2]) {
-            object.markedForDeletion = true
-            score++
-            explosions.push(new Explosion(object.x, object.y, object.width))
+            // collision detected by color
+            object.markedForDeletion = true;
+            score++;
+            explosions.push(new Explosion(object.x, object.y, object.width));
+            console.log(explosions)
         }
     })
 })
-
-let particles = []
-class Particle {
-    constructor(x, y, size, color) {
-        this.size = size
-        this.x = x + this.size/2 + Math.random() * 50 - 25
-        this.y = y + this.size/3 + Math.random() * 50 - 25
-        this.raidius = Math. random() * this.size/10
-        this.maxRadius = Math.random() * 1 + 0.5
-        this.color = color
-    }
-    update() {
-        this.x += this.speedX
-        this.radius +=  0.8
-        if (this.radius > this.maxRadius - 5) this.markedForDeletion = true
-    }
-    draw() {
-        ctx.save()
-        ctx.globalAlpha = 1 - this.radius/this.maxRadius
-        ctx.beginPath()
-        ctx.fillStyle = this.color
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI *2)
-        ctx.fill()
-        ctx.restore()
-    }
-
-}
-
-
 
 function animate(timestamp) {
     ctx.clearRect(0, 0, canvas.width, canvas.height)
@@ -171,9 +171,6 @@ function animate(timestamp) {
             return a.width - b.width
         })
     }
-
-
-
     drawScore();
     [...particles, ...ravens, ...explosions].forEach(object => object.update(deltatime));
     [...particles, ...ravens, ...explosions].forEach(object => object.draw());
